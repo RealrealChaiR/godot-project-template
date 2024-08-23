@@ -1,0 +1,6 @@
+# Project builds
+/build/
+
+# Godot 4+ specific ignores
+.godot/
+/android/
