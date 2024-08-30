@@ -6,85 +6,46 @@ env:
   PROJECT_NAME: project-name
 
 jobs:
-  export-windows:
-    name: Export Windows
+  export:
+    name: ${{ matrix.platform }}
     runs-on: ubuntu-20.04
     container:
       image: barichello/godot-ci:4.3
+    strategy:
+      matrix:
+        platform:
+          - windows
+          - linux
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup
-        uses: ./.github/actions/setup
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mv \
+            /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable \
+            ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir build/${{ matrix.platform }}/
 
       - name: Build
         run: |
-          godot --headless --verbose --export-release "Windows Desktop" ./build/windows/$PROJECT_NAME.exe
+          if [ "${{ matrix.platform }}" == "windows" ]; then
+            godot --headless --verbose --export-release "Windows Desktop" ./build/${{ matrix.platform }}/$PROJECT_NAME.exe
+          elif [ "${{ matrix.platform }}" == "linux" ]; then
+            godot --headless --verbose --export-release "Linux" ./build/${{ matrix.platform }}/$PROJECT_NAME.x86_64
+          elif [ "${{ matrix.platform }}" == "android-debug" ]; then
+            godot --headless --verbose --export-debug "Android Debug" ./build/android-debug/$PROJECT_NAME-debug.apk
+          fi
 
-      - name: "Compress"
-        run: |
-          cd ./build/
-          tar -cvf $PROJECT_NAME-windows.tar windows
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows
-          path: build/${{env.PROJECT_NAME}}-windows.tar
-
-  export-linux:
-    name: Export Linux
-    runs-on: ubuntu-20.04
-    container:
-      image: barichello/godot-ci:4.3
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Build
-        run: |
-          godot --headless --verbose --export-release "Linux" ./build/linux/$PROJECT_NAME.x86_64
-
-      - name: "Compress"
+      - name: Compress
         run: |
           cd build
-          tar -cvf $PROJECT_NAME-linux.tar linux
+          tar -cvf $PROJECT_NAME-${{ matrix.platform }}.tar ${{ matrix.platform }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux
-          path: build/${{env.PROJECT_NAME}}-linux.tar
-
-  export-android:
-    name: Export Android Debug
-    runs-on: ubuntu-20.04
-    container:
-      image: barichello/godot-ci:4.3
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      # - name: Build
-      #   run: |
-      #     echo 'export/android/java_sdk_path = "/usr/lib/jvm/java-17-openjdk-amd64"' >> /root/.config/godot/editor_settings-4.tres
-      #     cp /root/.config/godot/editor_settings-4.tres /root/.config/godot/editor_settings-4.3.tres
-      #     godot --headless --verbose --export-debug "Android Debug" ./build/android/$PROJECT_NAME-debug.apk
-
-      # - name: "Compress"
-      #   run: |
-      #     cd build
-      #     tar -cvf $PROJECT_NAME-android-debug.tar android
-
-      # - name: Upload Artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: android-debug
-      #     path: build/${{env.PROJECT_NAME}}-android-debug.tar
+          name: ${{ matrix.platform }}
+          path: build/${{ env.PROJECT_NAME }}-${{ matrix.platform }}.tar
